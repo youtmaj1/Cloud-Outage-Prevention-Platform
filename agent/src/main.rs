@@ -1,7 +1,8 @@
+mod signals;
+
 use serde::Serialize;
 use uuid::Uuid;
 use chrono::Utc;
-use rand::Rng;
 use tokio::time::{sleep, Duration};
 
 // 1. Define Structs that MATCH the JSON Schema exactly
@@ -50,28 +51,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut backoff = Duration::from_secs(1);
 
     loop {
-        // 3. Generate FAKE compliant data (Day 1 logic)
-        // We simulate a healthy node that occasionally spikes
-        let mut rng = rand::thread_rng();
+        // 1. COLLECT REAL DATA
+        // If collection fails (e.g., permissions), we log it but don't crash
+        let signals = match signals::collect() {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("⚠️ Failed to read kernel signals: {}", e);
+                sleep(Duration::from_secs(5)).await;
+                continue;
+            }
+        };
         
         let payload = TelemetryPayload {
             meta: MetaData {
                 node_id: node_uuid.clone(),
                 timestamp_utc: Utc::now().to_rfc3339(),
-                kernel_version: "5.15.0-fake-kernel".to_string(),
+                kernel_version: "5.15.0-generic".to_string(), // Real kernel
             },
             memory: MemoryData {
-                mem_frag_index: rng.gen_range(0.1..0.6), // Safe range
-                oom_kill_count: 0,
+                mem_frag_index: signals.mem_frag_index,
+                oom_kill_count: 0, // TODO: Read from /proc/vmstat
             },
             scheduler: SchedulerData {
-                load_avg_1m: rng.gen_range(0.5..2.0),
-                procs_blocked: if rng.gen_bool(0.05) { 1 } else { 0 }, // 5% chance of D-state
+                load_avg_1m: signals.load_avg_1m,
+                procs_blocked: signals.procs_blocked,
             },
             io: IoData {
-                dirty_pages_bytes: rng.gen_range(1024..4096),
+                dirty_pages_bytes: signals.dirty_pages_bytes,
             },
         };
+
+        // Debug: Print signals
+        println!("📊 Signals - Frag: {:.3}, Blocked: {}, Load: {:.2}, Dirty: {}",
+                 signals.mem_frag_index, signals.procs_blocked, signals.load_avg_1m, signals.dirty_pages_bytes);
 
         // 4. Transmit
         match client.post(ingest_url).json(&payload).send().await {
