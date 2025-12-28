@@ -7,6 +7,8 @@ import asyncpg
 from datetime import datetime
 from contextlib import asynccontextmanager
 
+from api_alerts import router
+
 # Setup
 app = FastAPI()
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +33,8 @@ async def lifespan(app: FastAPI):
     logger.info("Database connection pool closed")
 
 app = FastAPI(lifespan=lifespan)
+
+app.include_router(router)
 
 @app.post("/ingest")
 async def ingest_telemetry(request: Request):
