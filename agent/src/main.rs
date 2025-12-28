@@ -1,8 +1,8 @@
-use serde::{Serialize, Deserialize};
+use serde::Serialize;
 use uuid::Uuid;
 use chrono::Utc;
 use rand::Rng;
-use std::{thread, time::Duration};
+use tokio::time::{sleep, Duration};
 
 // 1. Define Structs that MATCH the JSON Schema exactly
 // This is the Rust-side implementation of the Contract
@@ -47,6 +47,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("🚀 Agent starting. Node ID: {}", node_uuid);
 
+    let mut backoff = Duration::from_secs(1);
+
     loop {
         // 3. Generate FAKE compliant data (Day 1 logic)
         // We simulate a healthy node that occasionally spikes
@@ -76,15 +78,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(resp) => {
                 if resp.status().is_success() {
                     println!("✅ Sent payload. Status: {}", resp.status());
+                    backoff = Duration::from_secs(1); // Reset backoff on success
+                    sleep(Duration::from_secs(5)).await; // Normal heartbeat
                 } else {
                     eprintln!("❌ Server rejected: {}", resp.status());
-                    // In real agent: Backoff logic here
+                    sleep(backoff).await; // Backoff delay
+                    backoff = (backoff * 2).min(Duration::from_secs(60)); // Exponential backoff, cap at 60s
                 }
             }
-            Err(e) => eprintln!("❌ Connection failed: {}", e),
+            Err(e) => {
+                eprintln!("❌ Connection failed: {}", e);
+                sleep(backoff).await; // Backoff on connection error
+                backoff = (backoff * 2).min(Duration::from_secs(60));
+            }
         }
-
-        // Heartbeat interval
-        thread::sleep(Duration::from_secs(5));
     }
 }
