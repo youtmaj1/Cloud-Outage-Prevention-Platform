@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KernelTelemetryPayload",
+  "type": "object",
+  "required": ["meta", "memory", "scheduler", "io"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["node_id", "timestamp_utc", "kernel_version"],
+      "properties": {
+        "node_id": { "type": "string", "format": "uuid" },
+        "timestamp_utc": { "type": "string", "format": "date-time" },
+        "kernel_version": { "type": "string" }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "required": ["mem_frag_index", "oom_kill_count"],
+      "properties": {
+        "mem_frag_index": { 
+            "type": "number", 
+            "minimum": 0.0, 
+            "maximum": 1.0,
+            "description": "Fragmentation index. 1.0 = Highly Fragmented."
+        },
+        "oom_kill_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "scheduler": {
+      "type": "object",
+      "required": ["load_avg_1m", "procs_blocked"],
+      "properties": {
+        "load_avg_1m": { "type": "number", "minimum": 0.0 },
+        "procs_blocked": { 
+            "type": "integer", 
+            "minimum": 0,
+            "description": "Critical Signal: Tasks in D-State (TASK_UNINTERRUPTIBLE)"
+        }
+      }
+    },
+    "io": {
+      "type": "object",
+      "required": ["dirty_pages_bytes"],
+      "properties": {
+        "dirty_pages_bytes": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
