@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from jsonschema import validate, ValidationError
 
 # Load the schema (The Law)
-with open('../shared/contracts/telemetry.json') as f:
+with open('shared/telemetry.json') as f:
     SCHEMA = json.load(f)
 
 def create_valid_payload():
